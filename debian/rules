@@ -24,7 +24,6 @@ export BINDIR V PKG_CONFIG
 include /usr/share/dpkg/architecture.mk
 HOSTAPD_DOT_CONFIG            := debian/config/hostapd/$(DEB_HOST_ARCH_OS)
 WPASUPPLICANT_DOT_CONFIG      := debian/config/wpasupplicant/$(DEB_HOST_ARCH_OS)
-WPASUPPLICANT_UDEB_DOT_CONFIG := debian/config/wpasupplicant/$(DEB_HOST_ARCH_OS)-udeb
 
 ### start dh overrides
 override_dh_auto_configure:
@@ -38,15 +37,6 @@ override_dh_auto_build:
 	dh_auto_build --sourcedirectory=wpa_supplicant/doc/docbook \
 	              --buildsystem=makefile \
 	              -- man
-ifeq (,$(filter noudeb,$(DEB_BUILD_PROFILES)))
-	# build wpasupplicant-udeb
-	cp -v --remove-destination $(WPASUPPLICANT_UDEB_DOT_CONFIG) wpa_supplicant/.config
-	CFLAGS="$(UCFLAGS)" dh_auto_build --sourcedirectory=wpa_supplicant \
-	              --buildsystem=makefile
-	mv -v wpa_supplicant/wpa_supplicant wpa_supplicant/wpa_supplicant-udeb
-	dh_auto_clean --sourcedirectory=wpa_supplicant \
-	              --buildsystem=makefile
-endif
 	# build wpasupplicant, libwpa_client and eapol_test
 	cp -v --remove-destination $(WPASUPPLICANT_DOT_CONFIG) wpa_supplicant/.config
 	dh_auto_build --sourcedirectory=wpa_supplicant \
@@ -81,20 +71,10 @@ endif
 override_dh_auto_install:
 	$(info Skip dh_auto_install ...)
 
-execute_before_dh_clean:
-	# make sure to remove the staging directory for the udeb
-	rm -rf debian/wpasupplicant-udeb
-
 execute_after_dh_install:
 	# install D-Bus service activation files & configuration
 	install --mode=644 -D wpa_supplicant/dbus/dbus-wpa_supplicant.conf \
 		debian/wpasupplicant/etc/dbus-1/system.d/wpa_supplicant.conf
-ifeq (,$(filter noudeb,$(DEB_BUILD_PROFILES)))
-	# Install udeb
-	install --mode=755 -D wpa_supplicant/wpa_supplicant-udeb \
-		debian/wpasupplicant-udeb/sbin/wpa_supplicant
-endif
-
 override_dh_installchangelogs:
 	dh_installchangelogs --package=hostapd hostapd/ChangeLog
 	dh_installchangelogs --package=wpasupplicant wpa_supplicant/ChangeLog
